@@ -1,5 +1,5 @@
 FROM golang:1.9
-MAINTAINER Alexander R. <spaizadv@gmail.com>
+LABEL maintainer="support@panoply.io"
 ARG REPOSITORY_PATH=${GOPATH}/src/github.com/panoplyio/cwlogs/
 COPY . ${REPOSITORY_PATH}
 WORKDIR ${REPOSITORY_PATH}
