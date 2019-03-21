@@ -1,12 +1,14 @@
 package app
 
 import (
-	"time"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"io"
 	"os"
+	"path/filepath"
+	"time"
 )
 
 const defaultStatsPeriod = 5 * time.Second
@@ -21,10 +23,10 @@ func NewLogsDownloader(config *Config) *LogsDownloader {
 
 // LogsDownloader ...
 type LogsDownloader struct {
-	config       *Config
-	statsPeriod  time.Duration
-	bytesLoaded  int
-	OnLoaded     func(total string)
+	config      *Config
+	statsPeriod time.Duration
+	bytesLoaded int
+	OnLoaded    func(total string)
 }
 
 // Run starts to download log file
@@ -46,7 +48,13 @@ func (r *LogsDownloader) Run() error {
 		StartFromHead: aws.Bool(r.config.FromHead),
 	}
 
-	writer, err := r.GetWriter(r.FileName())
+	filename := r.FileName()
+	err = r.ensureDir(filename)
+	if err != nil {
+		return err
+	}
+
+	writer, err := r.GetWriter(filename)
 	if err != nil {
 		return err
 	}
@@ -93,9 +101,24 @@ func (r *LogsDownloader) Loaded() string {
 	return ByteSize(uint64(r.bytesLoaded))
 }
 
-// FileName returns file anme for writing logs
+// FileName returns file name for writing logs
 func (r *LogsDownloader) FileName() string {
-	return r.config.Stream + ".log"
+	return fmt.Sprintf("%s%s", r.config.Stream, ".log")
+}
+
+// ensureDir create the nested directories to the file
+func (r *LogsDownloader) ensureDir(fileName string) error {
+	dirName := filepath.Dir(fileName)
+	_, serr := os.Stat(dirName)
+	if serr == nil {
+		return serr
+	}
+	merr := os.MkdirAll(dirName, os.ModePerm)
+	if merr != nil {
+		return merr
+	}
+
+	return nil
 }
 
 // notify OnLoaded listener only if size string changed
